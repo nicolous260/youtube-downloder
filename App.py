@@ -1,7 +1,7 @@
 """
-nicolous260 — YouTube downloader & song recogniser
+nicolous260 — YouTube downloader
 ====================================================
-Improvements over New.py
+Improvements over App.py
 --------------------------
 * Proper Flask `templates/` + `static/` layout (no more 1 500-line render_template_string).
 * `/api/info`         — single-video metadata without a full search.
