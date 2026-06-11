@@ -41,8 +41,9 @@
 
 ```bash
 # 1. Clone the repo
-git clone https://github.com/your-username/nicolous.git
-cd nicolous
+https://github.com/nicolous260/youtube-downloder.git
+
+cd youtube-downloder
 
 # 2. Install Python dependencies
 pip install flask yt-dlp requests cryptography
@@ -76,7 +77,7 @@ YTDL_COOKIES=/path/to/cookies.txt python app.py
 ## Project Structure
 
 ```
-nicolous/
+Youtube downloder/
 ├── app.py                  # Flask app — all routes and backend logic
 ├── static/
 │   ├── css/
