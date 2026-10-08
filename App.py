@@ -74,7 +74,7 @@ PER_PAGE: int = 12
 
 
 # yt-dlp extractor args shared across all requests.
-_YT_EXTRACTOR_ARGS: dict = {"youtube": {"player_client": ["tv_downgraded", "web"]}}
+_YT_EXTRACTOR_ARGS: dict = {}
 
 # ══════════════════════════════════════════════════════════════════════════════
 # Global state (thread-safe)

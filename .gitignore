@@ -1,0 +1,24 @@
+# Built application files
+*.apk
+*.ap_
+*.aab
+
+# Files for the JVM target
+*.class
+
+# Generated files
+bin/
+gen/
+out/
+build/
+.gradle/
+.idea/
+local.properties
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+font_cache/
+ssl_certs/
+ytdl_web_workspace/
