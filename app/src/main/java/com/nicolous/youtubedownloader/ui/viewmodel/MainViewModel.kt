@@ -113,6 +113,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                                         withContext(Dispatchers.Main) {
                                             Toast.makeText(context, "Error: $err", Toast.LENGTH_LONG).show()
                                             isDownloading = false
+                                            selectedVideoForDownload = null
                                         }
                                         break
                                     }
@@ -124,12 +125,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     withContext(Dispatchers.Main) {
                         Toast.makeText(context, "Download failed: Server response ${response.code}", Toast.LENGTH_LONG).show()
                         isDownloading = false
+                        selectedVideoForDownload = null
                     }
                 }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
                     Toast.makeText(context, "Error: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
                     isDownloading = false
+                    selectedVideoForDownload = null
                 }
             }
         }
@@ -155,17 +158,20 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
                 withContext(Dispatchers.Main) {
                     isDownloading = false
+                    selectedVideoForDownload = null
                     Toast.makeText(context, "Saved to Downloads: $fileName", Toast.LENGTH_LONG).show()
                 }
             } else {
                 withContext(Dispatchers.Main) {
                     isDownloading = false
+                    selectedVideoForDownload = null
                     Toast.makeText(context, "Failed to fetch file from server", Toast.LENGTH_LONG).show()
                 }
             }
         } catch (e: Exception) {
             withContext(Dispatchers.Main) {
                 isDownloading = false
+                selectedVideoForDownload = null
                 Toast.makeText(context, "Download failed: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
             }
         }
