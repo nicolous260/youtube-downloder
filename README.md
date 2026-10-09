@@ -1,26 +1,54 @@
-## YouTube Downloder
+# YouTube Downloader & Media Manager
 
-> A self-hosted YouTube downloader and media manager with a clean, modern web UI.
+> A robust, self-hosted YouTube downloader and media manager featuring a modern Python/Flask backend (`yt-dlp`) and a native **Jetpack Compose Android Application** with Material 3 design.
 
 ![Python](https://img.shields.io/badge/Python-3.8%2B-blue?style=flat-square&logo=python)
 ![Flask](https://img.shields.io/badge/Flask-2.x-lightgrey?style=flat-square&logo=flask)
+![Jetpack Compose](https://img.shields.io/badge/Jetpack_Compose-Android-green?style=flat-square&logo=android)
 ![yt-dlp](https://img.shields.io/badge/yt--dlp-latest-red?style=flat-square)
 ![License](https://img.shields.io/badge/license-MIT-green?style=flat-square)
 
 ---
 
+## Architecture & Project Structure
+
+```
+youtube-downloder/
+├── app.py                      # Flask backend app — search, stream proxy, yt-dlp download worker
+├── static/                     # Web UI static assets (CSS, JS)
+├── templates/                  # Web UI single-page HTML
+├── app/                        # Native Android App (Jetpack Compose + Material 3)
+│   ├── src/main/
+│   │   ├── java/com/nicolous/youtubedownloader/
+│   │   │   ├── MainActivity.kt
+│   │   │   ├── data/api/YouTubeApiService.kt
+│   │   │   ├── data/model/Models.kt
+│   │   │   └── ui/screens/     # MainScreen, DownloadDialog
+│   │   ├── res/                # Vector app icons, themes, strings
+│   │   └── AndroidManifest.xml
+│   ├── build.gradle.kts
+│   └── ...
+└── README.md
+```
+
+---
+
 ## Features
 
-- **Search YouTube** — search by keyword or paste a video/playlist URL directly
-- **Download video or audio** — choose MP4 (360p / 720p / 1080p) or extract MP3 at 192 kbps
-- **Real-time progress** — live download bar with speed and ETA streamed via SSE
-- **Playlist support** — fetch up to 100 entries from any playlist URL
-- **Stream proxy** — built-in proxy with Range request support for in-browser playback
-- **Download history** — client-side history drawer so you can re-download past items
-- **Rate limiting** — max 3 concurrent downloads per IP with `Retry-After` header
-- **Dark / light theme** — toggle in the nav bar, persists across sessions
-- **Self-hosted fonts** — Material Symbols and Plus Jakarta Sans are cached locally; no external calls at runtime
-- **HTTPS out of the box** — auto-generates a self-signed cert on first run (requires `cryptography` or `openssl`)
+### 🖥️ Python / Flask Backend
+- **Search YouTube** — search by keyword or paste video/playlist URLs directly.
+- **Download Engine (`yt-dlp`)** — robust extraction with anti-bot adjustments and player client fallbacks.
+- **Stream Proxy** — built-in proxy with HTTP Range request support for in-browser/in-app playback.
+- **Real-Time Progress** — live Server-Sent Events (SSE) streaming download percentage, speed, and ETA.
+- **Rate Limiting** — concurrent download limits per IP with `Retry-After` headers.
+- **Self-Hosted Fonts & HTTPS** — caches Material Symbols / Plus Jakarta Sans locally and auto-generates self-signed TLS certs.
+
+### 📱 Native Android App (Jetpack Compose)
+- **Modern Material 3 UI** — dark theme, polished YouTube-inspired design system, cards, and smooth animations.
+- **Live Search & Thumbnails** — async image loading via Coil and lazy columns.
+- **Interactive Download Dialog** — choose between **Video (MP4)** with quality selection (`360p`, `720p`, `1080p`) or **Audio (MP3)** at 192 kbps.
+- **Background Downloader** — downloads media directly via OkHttp and saves files straight to the phone's public **Downloads** folder (`/storage/emulated/0/Download`).
+- **Custom Adaptive App Icon** — professional vector app launcher icon.
 
 ---
 
@@ -28,66 +56,42 @@
 
 | Dependency | Notes |
 |---|---|
-| Python 3.8+ | |
+| Python 3.8+ | Backend server |
 | [yt-dlp](https://github.com/yt-dlp/yt-dlp) | Core download engine |
-| [Flask](https://flask.palletsprojects.com/) | Web server |
+| [Flask](https://flask.palletsprojects.com/) | Web framework |
 | [requests](https://requests.readthedocs.io/) | HTTP client |
-| ffmpeg *(recommended)* | Required for 720p/1080p video+audio merging. Without it, downloads fall back to pre-muxed formats (max ~480p). |
-| `cryptography` *(optional)* | Enables adhoc HTTPS cert. Alternatively, `openssl` in PATH works too. |
+| `ffmpeg` *(recommended)* | Required for 720p/1080p video+audio merging. Without it, downloads fall back to pre-muxed formats (max ~480p). |
+| Android SDK / Gradle | To build and run the Android app |
 
 ---
 
-## Installation
+## Installation & Setup
 
+### 1. Python Backend
 ```bash
-# 1. Clone the repo
-https://github.com/nicolous260/youtube-downloder.git
-
+# Clone repository
+git clone https://github.com/nicolous260/youtube-downloder.git
 cd youtube-downloder
 
-# 2. Install Python dependencies
+# Install Python dependencies
 pip install flask yt-dlp requests cryptography
 
-# 3. (Recommended) Install ffmpeg
-# macOS:   brew install ffmpeg
-# Ubuntu:  sudo apt install ffmpeg
-# Windows: https://ffmpeg.org/download.html
+# (Optional - Recommended for HD merging)
+# Ubuntu/Debian: sudo apt install ffmpeg
+# macOS: brew install ffmpeg
 
-# 4. Run the app
+# Run backend server
 python app.py
 ```
 
-Then open **https://localhost:5000** in your browser. Accept the self-signed certificate warning on first visit.
-
----
-
-## Cookies (age-restricted / sign-in required content)
-
-Some videos require a YouTube session cookie. Export your browser cookies to a `cookies.txt` file (Netscape format) and either:
-
-- Place it at `/root/ytdl/cookies.txt`, **or**
-- Set the environment variable:
-
-```bash
-YTDL_COOKIES=/path/to/cookies.txt python app.py
-```
-
----
-
-## Project Structure
-
-```
-Youtube downloder/
-├── app.py                  # Flask app — all routes and backend logic
-├── static/
-│   ├── css/
-│   │   └── main.css        # UI styles (dark/light theme variables)
-│   └── js/
-│       └── main.js         # Frontend logic (search, download, history)
-├── templates/
-│   └── index.html          # Single-page shell
-└── font_cache/             # Auto-created; cached Google Fonts (woff2 + CSS)
-```
+### 2. Native Android App
+1. Open the project folder in **Android Studio**.
+2. Connect an Android device or emulator via USB (enable USB debugging).
+3. Ensure adb reverse is set up for local communication:
+   ```bash
+   adb reverse tcp:5000 tcp:5000
+   ```
+4. Click **Run** (`Shift + F10`) to build and install the app on your device.
 
 ---
 
@@ -99,53 +103,10 @@ Youtube downloder/
 | `POST` | `/api/info` | Fetch metadata for a single video ID or URL. Body: `{ id }` |
 | `POST` | `/api/download` | Stream download progress (SSE). Body: `{ id, type, quality }` |
 | `GET` | `/api/stream/<video_id>` | Proxy a YouTube stream URL with Range support |
-| `GET` | `/api/serve/<task_id>` | Serve a completed download for 2 minutes after finishing |
-
-### Download request body
-
-```json
-{
-  "id": "dQw4w9WgXcQ",
-  "type": "video",        // "video" | "audio"
-  "quality": "1080"       // "360" | "720" | "1080" (video only)
-}
-```
-
-### Download event stream
-
-Each line in the SSE stream is a JSON object:
-
-```jsonc
-{ "status": "downloading", "percent": 42.3, "speed": "3.1 MB/s", "eta": 12 }
-{ "status": "processing" }
-{ "status": "finished", "url": "/api/serve/<task_id>", "filename": "video.mp4" }
-{ "status": "error", "error": "Video unavailable or private." }
-```
-
----
-
-## Configuration
-
-All tuneable constants live at the top of `app.py`:
-
-| Constant | Default | Description |
-|---|---|---|
-| `MAX_DOWNLOADS_PER_IP` | `3` | Concurrent download slots per IP |
-| `TASK_DIR_TTL` | `120` | Seconds a finished file is kept before deletion |
-| `STREAM_CACHE_TTL` | `3600` | Seconds a resolved stream URL is cached |
-| `SEARCH_CACHE_MAX` | `30` | Max distinct search queries kept in memory |
-| `PER_PAGE` | `12` | Search results per page |
-
----
-
-## Notes
-
-- Downloaded files are stored in a system temp directory and **automatically deleted** 2 minutes after the download completes.
-- The stream cache evicts entries after 1 hour (YouTube signed URLs typically expire after ~6 hours).
-- Path-traversal protection is enforced on all task IDs — only valid UUID4 values are accepted.
+| `GET` | `/api/serve/<task_id>` | Serve a completed download file |
 
 ---
 
 ## License
 
-MIT — do whatever you like, but please don't use this to infringe on anyone's content rights.
+MIT — feel free to use, modify, and distribute.
