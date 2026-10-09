@@ -38,7 +38,7 @@ fun DownloadDialog(
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         LinearProgressIndicator(
-                            progress = viewModel.downloadProgress,
+                            progress = { viewModel.downloadProgress },
                             modifier = Modifier.fillMaxWidth()
                         )
                         Spacer(modifier = Modifier.height(12.dp))
@@ -49,34 +49,39 @@ fun DownloadDialog(
                     }
                 } else {
                     Text(text = "Format:", style = MaterialTheme.typography.labelMedium)
+                    Spacer(modifier = Modifier.height(8.dp))
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        FilterChip(
+                        SelectableButton(
+                            text = "Video",
                             selected = mediaType == "video",
                             onClick = { mediaType = "video" },
-                            label = { Text("Video (MP4)") }
+                            modifier = Modifier.weight(1f)
                         )
-                        FilterChip(
+                        SelectableButton(
+                            text = "Audio",
                             selected = mediaType == "audio",
                             onClick = { mediaType = "audio" },
-                            label = { Text("Audio (MP3)") }
+                            modifier = Modifier.weight(1f)
                         )
                     }
 
                     if (mediaType == "video") {
-                        Spacer(modifier = Modifier.height(12.dp))
+                        Spacer(modifier = Modifier.height(16.dp))
                         Text(text = "Quality:", style = MaterialTheme.typography.labelMedium)
+                        Spacer(modifier = Modifier.height(8.dp))
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
-                            listOf("360", "720", "1080").forEach { q ->
-                                FilterChip(
-                                    selected = quality == q,
-                                    onClick = { quality == q },
-                                    label = { Text("${q}p") }
+                            listOf("360" to "360p", "720" to "720p", "1080" to "1080p").forEach { (qVal, qLabel) ->
+                                SelectableButton(
+                                    text = qLabel,
+                                    selected = quality == qVal,
+                                    onClick = { quality = qVal },
+                                    modifier = Modifier.weight(1f)
                                 )
                             }
                         }
@@ -89,7 +94,8 @@ fun DownloadDialog(
                 Button(
                     onClick = {
                         viewModel.startDownload(video, mediaType, quality)
-                    }
+                    },
+                    modifier = Modifier.fillMaxWidth()
                 ) {
                     Text("Download Now")
                 }
@@ -97,10 +103,38 @@ fun DownloadDialog(
         },
         dismissButton = {
             if (!viewModel.isDownloading) {
-                TextButton(onClick = onDismiss) {
+                TextButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
                     Text("Cancel")
                 }
             }
         }
     )
+}
+
+@Composable
+fun SelectableButton(
+    text: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    if (selected) {
+        Button(
+            onClick = onClick,
+            modifier = modifier,
+            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+        ) {
+            Text(text, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+        }
+    } else {
+        OutlinedButton(
+            onClick = onClick,
+            modifier = modifier
+        ) {
+            Text(text, style = MaterialTheme.typography.labelMedium)
+        }
+    }
 }
