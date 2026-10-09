@@ -91,6 +91,7 @@ fun MainScreen(viewModel: MainViewModel) {
     viewModel.selectedVideoForDownload?.let { video ->
         DownloadDialog(
             video = video,
+            viewModel = viewModel,
             onDismiss = { viewModel.selectedVideoForDownload = null }
         )
     }
