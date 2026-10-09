@@ -10,6 +10,7 @@ import retrofit2.http.Body
 import retrofit2.http.POST
 import java.security.SecureRandom
 import java.security.cert.X509Certificate
+import java.util.concurrent.TimeUnit
 import javax.net.ssl.SSLContext
 import javax.net.ssl.TrustManager
 import javax.net.ssl.X509TrustManager
@@ -20,7 +21,6 @@ interface YouTubeApiService {
     suspend fun searchVideos(@Body request: SearchRequest): Response<SearchResponse>
 
     companion object {
-        // Using localhost with adb reverse tcp:5000 tcp:5000
         private const val BASE_URL = "https://127.0.0.1:5000/"
 
         fun create(): YouTubeApiService {
@@ -38,6 +38,9 @@ interface YouTubeApiService {
                 val client = OkHttpClient.Builder()
                     .sslSocketFactory(sslSocketFactory, trustAllCerts[0] as X509TrustManager)
                     .hostnameVerifier { _, _ -> true }
+                    .connectTimeout(60, TimeUnit.SECONDS)
+                    .readTimeout(120, TimeUnit.SECONDS)
+                    .writeTimeout(60, TimeUnit.SECONDS)
                     .build()
 
                 Retrofit.Builder()
