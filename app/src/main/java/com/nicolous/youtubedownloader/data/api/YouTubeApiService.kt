@@ -21,9 +21,22 @@ interface YouTubeApiService {
     suspend fun searchVideos(@Body request: SearchRequest): Response<SearchResponse>
 
     companion object {
-        private const val BASE_URL = "https://127.0.0.1:5000/"
+        const val DEFAULT_EMULATOR_URL = "https://10.0.2.2:5000/"
+        const val DEFAULT_ADB_URL = "https://127.0.0.1:5000/"
 
-        fun create(): YouTubeApiService {
+        fun sanitizeUrl(url: String): String {
+            var formatted = url.trim()
+            if (!formatted.startsWith("http://") && !formatted.startsWith("https://")) {
+                formatted = "https://$formatted"
+            }
+            if (!formatted.endsWith("/")) {
+                formatted = "$formatted/"
+            }
+            return formatted
+        }
+
+        fun create(baseUrl: String = DEFAULT_EMULATOR_URL): YouTubeApiService {
+            val targetUrl = sanitizeUrl(baseUrl)
             return try {
                 val trustAllCerts = arrayOf<TrustManager>(object : X509TrustManager {
                     override fun checkClientTrusted(chain: Array<X509Certificate>, authType: String) {}
@@ -38,20 +51,20 @@ interface YouTubeApiService {
                 val client = OkHttpClient.Builder()
                     .sslSocketFactory(sslSocketFactory, trustAllCerts[0] as X509TrustManager)
                     .hostnameVerifier { _, _ -> true }
-                    .connectTimeout(60, TimeUnit.SECONDS)
+                    .connectTimeout(15, TimeUnit.SECONDS)
                     .readTimeout(120, TimeUnit.SECONDS)
                     .writeTimeout(60, TimeUnit.SECONDS)
                     .build()
 
                 Retrofit.Builder()
-                    .baseUrl(BASE_URL)
+                    .baseUrl(targetUrl)
                     .client(client)
                     .addConverterFactory(GsonConverterFactory.create())
                     .build()
                     .create(YouTubeApiService::class.java)
             } catch (e: Exception) {
                 Retrofit.Builder()
-                    .baseUrl(BASE_URL)
+                    .baseUrl(targetUrl)
                     .addConverterFactory(GsonConverterFactory.create())
                     .build()
                     .create(YouTubeApiService::class.java)
