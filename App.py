@@ -493,22 +493,26 @@ def proxy_stream_url(video_id: str):
 
     real_url = _get_cached_stream_url(video_id)
     if not real_url:
-        ydl_opts = {
-            **_ydl_base_opts(),
-            "format": "18/22/best[vcodec!=none][acodec!=none]/best"
-        }
+        ydl_opts = {**_ydl_base_opts()}
         try:
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(f"https://www.youtube.com/watch?v={video_id}", download=False)
-                real_url = info.get("url")
-                if info.get("vcodec") == "none" or info.get("acodec") == "none" or not real_url:
-                    if "formats" in info:
-                        for f in info["formats"]:
-                            if f.get("url") and f.get("vcodec") != "none" and f.get("acodec") != "none":
-                                real_url = f.get("url")
-                                break
-                if not real_url and info.get("url"):
+
+                formats = info.get("formats", [])
+                best_format = None
+                for f in formats:
+                    if f.get("url") and f.get("vcodec") != "none" and f.get("acodec") != "none":
+                        best_format = f
+
+                if best_format:
+                    real_url = best_format.get("url")
+
+                if not real_url:
                     real_url = info.get("url")
+
+                if not real_url and formats:
+                    real_url = formats[-1].get("url")
+
                 if real_url:
                     _set_cached_stream_url(video_id, real_url)
         except Exception as exc:
