@@ -493,14 +493,22 @@ def proxy_stream_url(video_id: str):
 
     real_url = _get_cached_stream_url(video_id)
     if not real_url:
-        ydl_opts = {**_ydl_base_opts(), "format": "best[ext=mp4]/best"}
+        ydl_opts = {**_ydl_base_opts(), "format": "best/bestvideo+bestaudio/best"}
         try:
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(f"https://www.youtube.com/watch?v={video_id}", download=False)
                 real_url = info.get("url")
+                if not real_url and "formats" in info:
+                    for f in reversed(info["formats"]):
+                        if f.get("url") and f.get("vcodec") != "none" and f.get("acodec") != "none":
+                            real_url = f.get("url")
+                            break
+                    if not real_url and info["formats"]:
+                        real_url = info["formats"][-1].get("url")
                 if real_url:
                     _set_cached_stream_url(video_id, real_url)
-        except Exception:
+        except Exception as exc:
+            print(f"[STREAM ERROR] {exc}")
             return "Unable to locate media path", 404
 
     if not real_url:
