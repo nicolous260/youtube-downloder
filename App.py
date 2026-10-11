@@ -487,26 +487,54 @@ def video_info():
 
 @app.route("/api/stream/<video_id>")
 def proxy_stream_url(video_id: str):
-    """Stream a fully muxed video+audio MP4 on-the-fly using yt-dlp and ffmpeg."""
+    """Stream a muxed video+audio MP4 live.
+
+    NOTE: `yt-dlp -f bv+ba -o -` cannot merge to stdout; it streams the video
+    stream and then the audio stream back to back, so players only ever play
+    the video (silent). Instead we resolve the direct stream URLs and let
+    ffmpeg mux them into a fragmented MP4 on stdout.
+    """
     if not re.match(r"^[\w\-]+$", video_id):
         return "Invalid video ID", 400
 
     video_url = f"https://www.youtube.com/watch?v={video_id}"
+    has_ffmpeg = shutil.which("ffmpeg") is not None
+
+    def resolve(fmt: str) -> list[str]:
+        out = subprocess.run(
+            ["yt-dlp", "--no-warnings", "-g", "-f", fmt, video_url],
+            capture_output=True, text=True, timeout=60,
+        )
+        if out.returncode != 0:
+            raise RuntimeError(out.stderr.strip() or "yt-dlp failed")
+        return [u for u in out.stdout.split() if u.startswith("http")]
+
+    try:
+        if has_ffmpeg:
+            urls = resolve("bv*[height<=720][ext=mp4]+ba[ext=m4a]/bv*[height<=720]+ba/b[height<=720]/b")
+        else:
+            urls = resolve("b[height<=720][acodec!=none][vcodec!=none]/b")
+    except Exception as exc:
+        return f"Stream error: {exc}", 502
+
+    if has_ffmpeg and len(urls) == 2:
+        cmd = ["ffmpeg", "-loglevel", "error", "-i", urls[0], "-i", urls[1],
+               "-map", "0:v:0", "-map", "1:a:0",
+               "-c:v", "copy", "-c:a", "aac", "-b:a", "128k",
+               "-movflags", "frag_keyframe+empty_moov+default_base_moof",
+               "-f", "mp4", "pipe:1"]
+    elif has_ffmpeg:
+        cmd = ["ffmpeg", "-loglevel", "error", "-i", urls[0],
+               "-c:v", "copy", "-c:a", "aac", "-b:a", "128k",
+               "-movflags", "frag_keyframe+empty_moov+default_base_moof",
+               "-f", "mp4", "pipe:1"]
+    else:
+        # No ffmpeg: single pre-muxed stream, proxied as-is.
+        cmd = ["yt-dlp", "--no-warnings", "--quiet", "-f",
+               "b[height<=720][acodec!=none][vcodec!=none]/b", "-o", "-", video_url]
 
     def generate():
-        has_ffmpeg = shutil.which("ffmpeg") is not None
-        cmd = [
-            "yt-dlp",
-            "--no-warnings",
-            "--quiet",
-        ]
-        if has_ffmpeg:
-            cmd.extend(["-f", "bestvideo[height<=720]+bestaudio/best", "--merge-output-format", "mp4"])
-        else:
-            cmd.extend(["-f", "best[height<=720]/best"])
-        cmd.extend(["-o", "-", video_url])
-
-        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
         try:
             while True:
                 chunk = proc.stdout.read(65536)
@@ -514,27 +542,12 @@ def proxy_stream_url(video_id: str):
                     break
                 yield chunk
         finally:
-            proc.terminate()
+            proc.kill()
             proc.wait()
 
     resp = Response(stream_with_context(generate()), mimetype="video/mp4")
-    resp.headers["Accept-Ranges"] = "bytes"
+    resp.headers["Cache-Control"] = "no-store"
     return resp
-
-    def generate_chunks():
-        try:
-            for chunk in yt_resp.iter_content(chunk_size=65536):
-                if chunk:
-                    yield chunk
-        finally:
-            yt_resp.close()
-            session.close()
-
-    proxy = Response(generate_chunks(), status=yt_resp.status_code)
-    for key, val in yt_resp.headers.items():
-        if key.lower() in ("content-type", "content-length", "content-range", "accept-ranges"):
-            proxy.headers[key] = val
-    return proxy
 
 
 # ══════════════════════════════════════════════════════════════════════════════
