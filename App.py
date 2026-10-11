@@ -487,57 +487,39 @@ def video_info():
 
 @app.route("/api/stream/<video_id>")
 def proxy_stream_url(video_id: str):
-    """Resolve and proxy a YouTube stream URL, handling Range requests."""
+    """Stream a fully muxed video+audio MP4 on-the-fly using yt-dlp and ffmpeg."""
     if not re.match(r"^[\w\-]+$", video_id):
         return "Invalid video ID", 400
 
-    real_url = _get_cached_stream_url(video_id)
-    if not real_url:
-        ydl_opts = {**_ydl_base_opts()}
+    video_url = f"https://www.youtube.com/watch?v={video_id}"
+
+    def generate():
+        has_ffmpeg = shutil.which("ffmpeg") is not None
+        cmd = [
+            "yt-dlp",
+            "--no-warnings",
+            "--quiet",
+        ]
+        if has_ffmpeg:
+            cmd.extend(["-f", "bestvideo[height<=720]+bestaudio/best", "--merge-output-format", "mp4"])
+        else:
+            cmd.extend(["-f", "best[height<=720]/best"])
+        cmd.extend(["-o", "-", video_url])
+
+        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         try:
-            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                info = ydl.extract_info(f"https://www.youtube.com/watch?v={video_id}", download=False)
+            while True:
+                chunk = proc.stdout.read(65536)
+                if not chunk:
+                    break
+                yield chunk
+        finally:
+            proc.terminate()
+            proc.wait()
 
-                formats = info.get("formats", [])
-                best_format = None
-                for f in formats:
-                    if f.get("url") and f.get("vcodec") != "none" and f.get("acodec") != "none":
-                        best_format = f
-
-                if best_format:
-                    real_url = best_format.get("url")
-
-                if not real_url:
-                    real_url = info.get("url")
-
-                if not real_url and formats:
-                    real_url = formats[-1].get("url")
-
-                if real_url:
-                    _set_cached_stream_url(video_id, real_url)
-        except Exception as exc:
-            print(f"[STREAM ERROR] {exc}")
-            return "Unable to locate media path", 404
-
-    if not real_url:
-        return "Streaming URL missing", 404
-
-    req_headers = {"User-Agent": _FONT_UA}
-    if "Range" in request.headers:
-        req_headers["Range"] = request.headers["Range"]
-
-    session = requests.Session()
-    try:
-        yt_resp = session.get(real_url, headers=req_headers, stream=True, timeout=15)
-    except Exception:
-        return "Stream fetch failed", 502
-
-    if yt_resp.status_code in (400, 403, 410):
-        with _stream_cache_lock:
-            _stream_cache.pop(video_id, None)
-        yt_resp.close()
-        session.close()
-        return "Stream expired — please reload", 404
+    resp = Response(stream_with_context(generate()), mimetype="video/mp4")
+    resp.headers["Accept-Ranges"] = "bytes"
+    return resp
 
     def generate_chunks():
         try:
