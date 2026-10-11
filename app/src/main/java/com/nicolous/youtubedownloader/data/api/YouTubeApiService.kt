@@ -23,6 +23,7 @@ interface YouTubeApiService {
     companion object {
         const val DEFAULT_EMULATOR_URL = "https://10.0.2.2:5000/"
         const val DEFAULT_ADB_URL = "https://127.0.0.1:5000/"
+        const val DEFAULT_WIFI_URL = "https://192.168.0.100:5000/"
 
         fun sanitizeUrl(url: String): String {
             var formatted = url.trim()

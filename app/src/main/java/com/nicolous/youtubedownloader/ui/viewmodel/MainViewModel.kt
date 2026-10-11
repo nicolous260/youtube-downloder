@@ -41,6 +41,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     var errorMessage by mutableStateOf<String?>(null)
 
     var selectedVideoForDownload by mutableStateOf<VideoItem?>(null)
+    var selectedVideoForPlay by mutableStateOf<VideoItem?>(null)
     var isDownloading by mutableStateOf(false)
     var downloadProgress by mutableStateOf(0f)
     var downloadStatusText by mutableStateOf("")
@@ -77,37 +78,38 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     errorMessage = "Server error: ${response.code()}"
                 }
             } catch (e: Exception) {
-                // Try automatic fallback host if default failed
-                val fallbackUrl = getFallbackUrl(serverUrl)
-                if (fallbackUrl != null) {
+                // Try automatic multi-candidate fallback across all known common hosts
+                val candidates = listOf(
+                    serverUrl,
+                    YouTubeApiService.DEFAULT_EMULATOR_URL,
+                    YouTubeApiService.DEFAULT_WIFI_URL,
+                    YouTubeApiService.DEFAULT_ADB_URL
+                ).distinct()
+
+                var success = false
+                for (candidate in candidates) {
+                    if (candidate == serverUrl) continue
                     try {
-                        val fallbackService = YouTubeApiService.create(fallbackUrl)
-                        val response = fallbackService.searchVideos(SearchRequest(query = searchQuery))
+                        val testService = YouTubeApiService.create(candidate)
+                        val response = testService.searchVideos(SearchRequest(query = searchQuery))
                         if (response.isSuccessful && response.body() != null) {
                             val body = response.body()!!
                             if (body.success) {
                                 videoList = body.results ?: emptyList()
-                                updateServerUrl(fallbackUrl)
-                                return@launch
+                                updateServerUrl(candidate)
+                                success = true
+                                break
                             }
                         }
-                    } catch (_: Exception) {
-                        // Fallback also failed
-                    }
+                    } catch (_: Exception) {}
                 }
 
-                errorMessage = buildConnectionErrorMessage(e.localizedMessage ?: "Unknown network error")
+                if (!success) {
+                    errorMessage = buildConnectionErrorMessage(e.localizedMessage ?: "Unknown network error")
+                }
             } finally {
                 isLoading = false
             }
-        }
-    }
-
-    private fun getFallbackUrl(currentUrl: String): String? {
-        return when {
-            currentUrl.contains("127.0.0.1") -> currentUrl.replace("127.0.0.1", "10.0.2.2")
-            currentUrl.contains("10.0.2.2") -> currentUrl.replace("10.0.2.2", "127.0.0.1")
-            else -> null
         }
     }
 

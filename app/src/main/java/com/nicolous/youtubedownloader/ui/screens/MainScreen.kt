@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
@@ -138,7 +139,8 @@ fun MainScreen(viewModel: MainViewModel) {
                     items(viewModel.videoList) { video ->
                         VideoCard(
                             video = video,
-                            onClick = { viewModel.selectedVideoForDownload = video }
+                            onPlayClick = { viewModel.selectedVideoForPlay = video },
+                            onDownloadClick = { viewModel.selectedVideoForDownload = video }
                         )
                     }
                 }
@@ -157,6 +159,14 @@ fun MainScreen(viewModel: MainViewModel) {
                 }
             },
             onDismiss = { viewModel.showServerSettingsDialog = false }
+        )
+    }
+
+    viewModel.selectedVideoForPlay?.let { video ->
+        VideoPlayerDialog(
+            video = video,
+            serverUrl = viewModel.serverUrl,
+            onDismiss = { viewModel.selectedVideoForPlay = null }
         )
     }
 
@@ -202,21 +212,28 @@ fun ServerSettingsDialog(
                 Spacer(modifier = Modifier.height(6.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     OutlinedButton(
                         onClick = { urlText = YouTubeApiService.DEFAULT_EMULATOR_URL },
                         modifier = Modifier.weight(1f),
-                        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp)
+                        contentPadding = PaddingValues(horizontal = 2.dp, vertical = 6.dp)
                     ) {
                         Text("10.0.2.2\n(Emulator)", style = MaterialTheme.typography.labelSmall, textAlign = TextAlign.Center)
                     }
                     OutlinedButton(
+                        onClick = { urlText = YouTubeApiService.DEFAULT_WIFI_URL },
+                        modifier = Modifier.weight(1f),
+                        contentPadding = PaddingValues(horizontal = 2.dp, vertical = 6.dp)
+                    ) {
+                        Text("192.168.0.100\n(Wi-Fi LAN)", style = MaterialTheme.typography.labelSmall, textAlign = TextAlign.Center)
+                    }
+                    OutlinedButton(
                         onClick = { urlText = YouTubeApiService.DEFAULT_ADB_URL },
                         modifier = Modifier.weight(1f),
-                        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp)
+                        contentPadding = PaddingValues(horizontal = 2.dp, vertical = 6.dp)
                     ) {
-                        Text("127.0.0.1\n(ADB Reverse)", style = MaterialTheme.typography.labelSmall, textAlign = TextAlign.Center)
+                        Text("127.0.0.1\n(ADB)", style = MaterialTheme.typography.labelSmall, textAlign = TextAlign.Center)
                     }
                 }
             }
@@ -243,12 +260,13 @@ fun ServerSettingsDialog(
 @Composable
 fun VideoCard(
     video: VideoItem,
-    onClick: () -> Unit
+    onPlayClick: () -> Unit,
+    onDownloadClick: () -> Unit
 ) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick),
+            .clickable(onClick = onPlayClick),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Row(
@@ -257,19 +275,36 @@ fun VideoCard(
                 .padding(8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            AsyncImage(
-                model = video.thumbnail,
-                contentDescription = video.title,
+            Box(
                 modifier = Modifier
                     .width(120.dp)
                     .height(70.dp)
-                    .clip(MaterialTheme.shapes.small),
-                contentScale = ContentScale.Crop
-            )
+                    .clip(MaterialTheme.shapes.small)
+            ) {
+                AsyncImage(
+                    model = video.thumbnail,
+                    contentDescription = video.title,
+                    modifier = Modifier.matchParentSize(),
+                    contentScale = ContentScale.Crop
+                )
+                Surface(
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.85f),
+                    shape = MaterialTheme.shapes.small,
+                    modifier = Modifier.align(Alignment.Center)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.PlayArrow,
+                        contentDescription = "Play",
+                        tint = MaterialTheme.colorScheme.onPrimary,
+                        modifier = Modifier
+                            .padding(4.dp)
+                            .size(24.dp)
+                    )
+                }
+            }
             Spacer(modifier = Modifier.width(12.dp))
             Column(
                 modifier = Modifier
-                    .fillMaxWidth()
                     .weight(1f)
             ) {
                 Text(
@@ -290,6 +325,14 @@ fun VideoCard(
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.primary
                 )
+            }
+            Spacer(modifier = Modifier.width(8.dp))
+            Button(
+                onClick = onDownloadClick,
+                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                modifier = Modifier.height(36.dp)
+            ) {
+                Text("Download", style = MaterialTheme.typography.labelSmall)
             }
         }
     }
