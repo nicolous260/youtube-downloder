@@ -485,69 +485,78 @@ def video_info():
 # ══════════════════════════════════════════════════════════════════════════════
 
 
+STREAM_FILE_DIR: str = os.path.join(TEMP_WORK_DIR, "stream_files")
+os.makedirs(STREAM_FILE_DIR, exist_ok=True)
+STREAM_FILE_MAX_AGE: int = 6 * 3600
+_stream_file_locks: dict[str, threading.Lock] = defaultdict(threading.Lock)
+
+
+def _prune_stream_files() -> None:
+    now = time.time()
+    for name in os.listdir(STREAM_FILE_DIR):
+        fp = os.path.join(STREAM_FILE_DIR, name)
+        try:
+            if now - os.path.getmtime(fp) > STREAM_FILE_MAX_AGE:
+                os.remove(fp)
+        except OSError:
+            pass
+
+
 @app.route("/api/stream/<video_id>")
 def proxy_stream_url(video_id: str):
-    """Stream a muxed video+audio MP4 live.
+    """Serve a muxed (video+audio) MP4 with HTTP Range support.
 
-    NOTE: `yt-dlp -f bv+ba -o -` cannot merge to stdout; it streams the video
-    stream and then the audio stream back to back, so players only ever play
-    the video (silent). Instead we resolve the direct stream URLs and let
-    ffmpeg mux them into a fragmented MP4 on stdout.
+    yt-dlp cannot merge video+audio to stdout (it sends them back to back, so
+    audio is lost), and a live-muxed stream has no duration, so the player's
+    seek bar / skip buttons stay disabled. So we merge once into a cached file
+    and serve it with send_file(conditional=True) -> 206 Partial Content.
     """
     if not re.match(r"^[\w\-]+$", video_id):
         return "Invalid video ID", 400
 
-    video_url = f"https://www.youtube.com/watch?v={video_id}"
-    has_ffmpeg = shutil.which("ffmpeg") is not None
+    final_path = os.path.join(STREAM_FILE_DIR, f"{video_id}.mp4")
 
-    def resolve(fmt: str) -> list[str]:
-        out = subprocess.run(
-            ["yt-dlp", "--no-warnings", "-g", "-f", fmt, video_url],
-            capture_output=True, text=True, timeout=60,
-        )
-        if out.returncode != 0:
-            raise RuntimeError(out.stderr.strip() or "yt-dlp failed")
-        return [u for u in out.stdout.split() if u.startswith("http")]
+    if not os.path.exists(final_path):
+        with _stream_file_locks[video_id]:
+            if not os.path.exists(final_path):
+                _prune_stream_files()
+                tmp_base = os.path.join(STREAM_FILE_DIR, f"{video_id}.tmp")
+                for old in (tmp_base + ".mp4",):
+                    if os.path.exists(old):
+                        os.remove(old)
+                opts: dict = {
+                    "quiet": True,
+                    "no_warnings": True,
+                    "outtmpl": tmp_base + ".%(ext)s",
+                    "noplaylist": True,
+                }
+                if COOKIES_FILE:
+                    opts["cookiefile"] = COOKIES_FILE
+                if _FFMPEG_AVAILABLE:
+                    opts["format"] = (
+                        "bv*[height<=720][ext=mp4]+ba[ext=m4a]/"
+                        "bv*[height<=720]+ba/b[height<=720]/b"
+                    )
+                    opts["merge_output_format"] = "mp4"
+                    opts["postprocessor_args"] = {
+                        "merger": ["-c:a", "aac", "-movflags", "+faststart"]
+                    }
+                else:
+                    opts["format"] = (
+                        "b[height<=720][acodec!=none][vcodec!=none][ext=mp4]/"
+                        "b[height<=720][acodec!=none][vcodec!=none]/b"
+                    )
+                try:
+                    with yt_dlp.YoutubeDL(opts) as ydl:
+                        ydl.download([f"https://www.youtube.com/watch?v={video_id}"])
+                except Exception as exc:
+                    return f"Stream error: {exc}", 502
+                tmp_file = tmp_base + ".mp4"
+                if not os.path.exists(tmp_file):
+                    return "Stream error: no file produced", 502
+                os.replace(tmp_file, final_path)
 
-    try:
-        if has_ffmpeg:
-            urls = resolve("bv*[height<=720][ext=mp4]+ba[ext=m4a]/bv*[height<=720]+ba/b[height<=720]/b")
-        else:
-            urls = resolve("b[height<=720][acodec!=none][vcodec!=none]/b")
-    except Exception as exc:
-        return f"Stream error: {exc}", 502
-
-    if has_ffmpeg and len(urls) == 2:
-        cmd = ["ffmpeg", "-loglevel", "error", "-i", urls[0], "-i", urls[1],
-               "-map", "0:v:0", "-map", "1:a:0",
-               "-c:v", "copy", "-c:a", "aac", "-b:a", "128k",
-               "-movflags", "frag_keyframe+empty_moov+default_base_moof",
-               "-f", "mp4", "pipe:1"]
-    elif has_ffmpeg:
-        cmd = ["ffmpeg", "-loglevel", "error", "-i", urls[0],
-               "-c:v", "copy", "-c:a", "aac", "-b:a", "128k",
-               "-movflags", "frag_keyframe+empty_moov+default_base_moof",
-               "-f", "mp4", "pipe:1"]
-    else:
-        # No ffmpeg: single pre-muxed stream, proxied as-is.
-        cmd = ["yt-dlp", "--no-warnings", "--quiet", "-f",
-               "b[height<=720][acodec!=none][vcodec!=none]/b", "-o", "-", video_url]
-
-    def generate():
-        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
-        try:
-            while True:
-                chunk = proc.stdout.read(65536)
-                if not chunk:
-                    break
-                yield chunk
-        finally:
-            proc.kill()
-            proc.wait()
-
-    resp = Response(stream_with_context(generate()), mimetype="video/mp4")
-    resp.headers["Cache-Control"] = "no-store"
-    return resp
+    return send_file(final_path, mimetype="video/mp4", conditional=True, max_age=0)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
