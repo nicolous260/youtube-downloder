@@ -18,11 +18,26 @@ android {
         vectorDrawables {
             useSupportLibrary = true
         }
+        // Keep only English strings from libraries (drops hundreds of locale resources)
+        resourceConfigurations += listOf("en")
+    }
+
+    // One small APK per CPU architecture. Install app-arm64-v8a-release.apk on almost all modern phones.
+    splits {
+        abi {
+            isEnable = true
+            reset()
+            include("arm64-v8a", "armeabi-v7a", "x86_64")
+            isUniversalApk = false
+        }
     }
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
+            // Sign with the debug key so the small release APK is installable directly
+            signingConfig = signingConfigs.getByName("debug")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -44,8 +59,20 @@ android {
     }
     packaging {
         resources {
-            excludes += "/META-INF/{AL2.0,LGPL2.1}"
+            excludes += setOf(
+                "/META-INF/{AL2.0,LGPL2.1}",
+                "/META-INF/*.version",
+                "/META-INF/LICENSE*",
+                "/META-INF/NOTICE*",
+                "/META-INF/DEPENDENCIES",
+                "/kotlin/**",
+                "DebugProbesKt.bin",
+                "kotlin-tooling-metadata.json"
+            )
         }
+    }
+    lint {
+        checkReleaseBuilds = false
     }
 }
 
@@ -56,14 +83,12 @@ dependencies {
     implementation(platform("androidx.compose:compose-bom:2024.02.00"))
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-graphics")
-    implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.material3:material3")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.7.0")
 
     // Retrofit & OkHttp for API communication
     implementation("com.squareup.retrofit2:retrofit:2.9.0")
     implementation("com.squareup.retrofit2:converter-gson:2.9.0")
-    implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
 
     // Coil for async image loading in Compose
     implementation("io.coil-kt:coil-compose:2.6.0")

@@ -1,0 +1,36 @@
+name: Build APK
+
+on:
+  push:
+    branches: [ main, small-apk ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      # The runner image already ships the Android SDK; just accept licenses
+      - name: Accept Android licenses
+        run: yes | "$ANDROID_HOME"/cmdline-tools/*/bin/sdkmanager --licenses > /dev/null || true
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Build release APKs
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleRelease --no-daemon
+
+      - name: Show APK sizes
+        run: ls -lh app/build/outputs/apk/release/*.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: YouTubeDownloader-apks
+          path: app/build/outputs/apk/release/*.apk
