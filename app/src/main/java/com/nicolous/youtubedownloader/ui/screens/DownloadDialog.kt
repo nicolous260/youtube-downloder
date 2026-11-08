@@ -18,6 +18,7 @@ fun DownloadDialog(
 ) {
     var mediaType by remember { mutableStateOf("video") } // "video" or "audio"
     var quality by remember { mutableStateOf("1080") } // "360", "720", "1080"
+    var audioQuality by remember { mutableStateOf("320") } // mp3 kbps, or "original"
 
     AlertDialog(
         onDismissRequest = { if (!viewModel.isDownloading) onDismiss() },
@@ -68,6 +69,31 @@ fun DownloadDialog(
                         )
                     }
 
+                    if (mediaType == "audio") {
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(text = "Audio quality:", style = MaterialTheme.typography.labelMedium)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        listOf(
+                            listOf("320" to "320 kbps", "256" to "256 kbps"),
+                            listOf("192" to "192 kbps", "128" to "128 kbps"),
+                            listOf("original" to "Original (m4a/opus, no re-encode)")
+                        ).forEach { rowItems ->
+                            Row(
+                                modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                rowItems.forEach { (qVal, qLabel) ->
+                                    SelectableButton(
+                                        text = qLabel,
+                                        selected = audioQuality == qVal,
+                                        onClick = { audioQuality = qVal },
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                }
+                            }
+                        }
+                    }
+
                     if (mediaType == "video") {
                         Spacer(modifier = Modifier.height(16.dp))
                         Text(text = "Quality:", style = MaterialTheme.typography.labelMedium)
@@ -93,7 +119,7 @@ fun DownloadDialog(
             if (!viewModel.isDownloading) {
                 Button(
                     onClick = {
-                        viewModel.startDownload(video, mediaType, quality)
+                        viewModel.startDownload(video, mediaType, if (mediaType == "audio") audioQuality else quality)
                     },
                     modifier = Modifier.fillMaxWidth()
                 ) {

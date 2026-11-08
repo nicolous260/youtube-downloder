@@ -677,12 +677,17 @@ def download_media():
             else:
                 ydl_opts["format"] = f"best[height<={h}][ext=mp4]/best[height<={h}]/best[ext=mp4]/best"
         else:
+            # Audio quality: an MP3 bitrate in kbps, or "original" to keep
+            # YouTube's own stream (m4a/opus) with no re-encoding.
+            audio_q = str(requested_quality)
+            if audio_q not in AUDIO_BITRATES and audio_q != "original":
+                audio_q = "320"  # "best" / unknown -> highest MP3 bitrate
             ydl_opts["format"] = "bestaudio[ext=m4a]/bestaudio/best"
-            if has_ffmpeg:
+            if has_ffmpeg and audio_q != "original":
                 ydl_opts["postprocessors"] = [{
                     "key": "FFmpegExtractAudio",
                     "preferredcodec": "mp3",
-                    "preferredquality": "192",
+                    "preferredquality": audio_q,
                 }]
 
         try:
@@ -766,6 +771,9 @@ def serve_file(task_id: str):
         download_name=files[0],
         conditional=True,
     )
+
+
+AUDIO_BITRATES = ("320", "256", "192", "128", "64")
 
 
 # ══════════════════════════════════════════════════════════════════════════════
