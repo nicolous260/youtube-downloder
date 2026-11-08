@@ -311,9 +311,39 @@ function _buildCard(item, index) {
                         <span>Video</span>
                     </button>
                 </div>
+                <div class="quality-menu" id="amenu-${_esc(item.id)}">
+                    <div class="quality-item best"
+                         onclick="triggerDownload('${_esc(item.id)}','audio','320')">
+                        <span class="material-symbols-rounded" style="font-size:16px;width:16px;height:16px;">graphic_eq</span>
+                        320 kbps
+                        <span class="badge">Best</span>
+                    </div>
+                    <div class="quality-item"
+                         onclick="triggerDownload('${_esc(item.id)}','audio','256')">
+                        <span class="material-symbols-rounded" style="font-size:16px;width:16px;height:16px;">graphic_eq</span>
+                        256 kbps
+                    </div>
+                    <div class="quality-item"
+                         onclick="triggerDownload('${_esc(item.id)}','audio','192')">
+                        <span class="material-symbols-rounded" style="font-size:16px;width:16px;height:16px;">graphic_eq</span>
+                        192 kbps
+                    </div>
+                    <div class="quality-item"
+                         onclick="triggerDownload('${_esc(item.id)}','audio','128')">
+                        <span class="material-symbols-rounded" style="font-size:16px;width:16px;height:16px;">graphic_eq</span>
+                        128 kbps
+                        <span class="badge">Smaller</span>
+                    </div>
+                    <div class="quality-item"
+                         onclick="triggerDownload('${_esc(item.id)}','audio','original')">
+                        <span class="material-symbols-rounded" style="font-size:16px;width:16px;height:16px;">graphic_eq</span>
+                        Original (m4a/opus)
+                        <span class="badge">No re-encode</span>
+                    </div>
+                </div>
                 <div class="btn-container">
                     <button class="btn btn-audio"
-                            onclick="triggerDownload('${_esc(item.id)}','audio','best')">
+                            onclick="toggleQualityMenu(this,'${_esc(item.id)}','amenu')">
                         <div class="progress-bar-fill"></div>
                         <span class="material-symbols-rounded">audiotrack</span>
                         <span>Audio</span>
@@ -367,8 +397,8 @@ function playVideoInline(wrapper, videoId) {
    QUALITY MENU
    ══════════════════════════════════════════════════════════════════════════ */
 
-function toggleQualityMenu(button, id) {
-    const menu   = document.getElementById(`menu-${id}`);
+function toggleQualityMenu(button, id, prefix = 'menu') {
+    const menu   = document.getElementById(`${prefix}-${id}`);
     const isOpen = menu.style.display === 'flex';
     document.querySelectorAll('.quality-menu').forEach(m => (m.style.display = 'none'));
     if (!isOpen) {

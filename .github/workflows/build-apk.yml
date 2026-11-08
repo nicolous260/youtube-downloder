@@ -3,7 +3,16 @@ name: Build APK
 on:
   push:
     branches: [ main, small-apk ]
+    tags: [ 'v*' ]
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Publish a GitHub release with this tag (leave empty to only build)'
+        required: false
+        default: 'v1.1'
+
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -34,3 +43,15 @@ jobs:
         with:
           name: YouTubeDownloader-apks
           path: app/build/outputs/apk/release/*.apk
+
+      - name: Publish GitHub release
+        if: startsWith(github.ref, 'refs/tags/v') || inputs.release_tag != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.release_tag || github.ref_name }}
+        run: |
+          cp app/build/outputs/apk/release/app-arm64-v8a-release.apk "YouTubeDownloader-$TAG.apk"
+          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --target "${{ github.sha }}" \
+            --title "YouTube Downloader $TAG (small APK)" \
+            --notes "Small release build (~1.8 MB): R8 + resource shrinking. Signed with debug key."
+          gh release upload "$TAG" "YouTubeDownloader-$TAG.apk" --clobber
